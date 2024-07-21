@@ -25,7 +25,7 @@ class ToDo:
 
         self.title: Label = Label(self.root, text="TO-DO LIST",
                                   background=self.bg_color)
-        self.title.place(relx=0.82, rely=0.1, anchor="center")
+        self.title.place(relx=0.82, rely=0.08, anchor="center")
 
         title_font: Font = tk_font.Font(self.title, self.title.cget("font"))
         title_font.config(family=self.TITLE_FONT, underline=True, size=15)
@@ -41,37 +41,42 @@ class ToDo:
         self.add_button: Button = Button(self.root, text="Add Task",
                                          width=10,
                                          command=self.add_task)
-        self.add_button.place(relx=0.82, rely=0.21, anchor="center")
+        self.add_button.place(relx=0.82, rely=0.18, anchor="center")
+
+        self.edit_button: Button = Button(self.root, text="Edit Task",
+                                          width=10,
+                                          command=self.edit_task)
+        self.edit_button.place(relx=0.82, rely=0.28, anchor="center")
 
         self.mark_button: Button = Button(self.root, text="Complete",
                                           width=10,
                                           command=self.mark_as_complete)
-        self.mark_button.place(relx=0.82, rely=0.31, anchor="center")
+        self.mark_button.place(relx=0.82, rely=0.38, anchor="center")
 
         self.progress_button: Button = Button(self.root, text="In Progress",
                                               width=10,
                                               command=self.mark_as_in_progress)
-        self.progress_button.place(relx=0.82, rely=0.41, anchor="center")
+        self.progress_button.place(relx=0.82, rely=0.48, anchor="center")
 
         self.delete_button: Button = Button(self.root, text="Delete Task",
                                             width=10,
                                             command=self.delete_item)
-        self.delete_button.place(relx=0.82, rely=0.51, anchor="center")
+        self.delete_button.place(relx=0.82, rely=0.58, anchor="center")
 
-        self.reset_task: Button = Button(self.root, text="Reset Task",
+        self.reset_button: Button = Button(self.root, text="Reset Task",
                                          width=10,
                                          command=self.reset_item)
-        self.reset_task.place(relx=0.82, rely=0.61, anchor="center")
+        self.reset_button.place(relx=0.82, rely=0.68, anchor="center")
 
         self.deselect_button: Button = Button(self.root, text="Deselect",
                                               width=10,
                                               command=self.deselect_item)
-        self.deselect_button.place(relx=0.82, rely=0.8, anchor="center")
+        self.deselect_button.place(relx=0.82, rely=0.82, anchor="center")
 
         self.clear_button: Button = Button(self.root, text="Clear All", 
                                            width=10,
                                            command=self.delete_all_items)
-        self.clear_button.place(relx=0.82, rely=0.9, anchor="center")
+        self.clear_button.place(relx=0.82, rely=0.92, anchor="center")
 
 
         self.list_items: dict[str,str] = {}
@@ -157,6 +162,8 @@ class ToDo:
         task_entry.bind('<KeyPress>', char_count)
         task_entry.bind('<KeyRelease>', char_count)
 
+        task_entry.focus()
+
         def add() -> None:
             # add to dictionary
             item: str = task_entry.get('1.0', END).strip()
@@ -172,6 +179,62 @@ class ToDo:
         add_button: Button = Button(menu, text="Add Task",
                                     command=add)
         add_button.place(relx=0.5, rely=0.8, anchor="center")
+
+    
+    def edit_task(self) -> None:
+        try:
+            current_index: int = self.list.curselection()[0]
+        except IndexError:
+            return
+        
+        item: str = list(self.list_items.keys())[current_index]
+
+        menu: Toplevel = Toplevel()
+        menu.geometry("250x100+600+300")
+        menu.resizable(False, False)
+        menu.title("Rename Task")
+        menu.grab_set()
+
+        CHAR_LIMIT: int = 31
+
+        def char_count(event):
+            # disallows typing in the task entry field after a character
+            # limit is reached
+            count = len(task_entry.get('1.0', END))
+            if count >= CHAR_LIMIT and event.keysym not in \
+                {'BackSpace', 'Delete', 'Up', 'Down', 'Left', 'Right'}:
+                return 'break'
+            
+        task_entry: Text = Text(menu, width=20, height=2, wrap="word")
+        task_entry.place(relx=0.5, rely=0.4, anchor="center")
+
+        task_entry.insert('1.0', item)
+        task_entry.focus()
+
+        task_entry.bind('<KeyPress>', char_count)
+        task_entry.bind('<KeyRelease>', char_count)
+
+        def edit() -> None:
+            # rename it in the dictionary, maintaining order
+            new_item: str = task_entry.get('1.0', END).strip()
+            new_dict: dict[str, str] = {}
+            for idx, item in enumerate(self.list_items.items()):
+                if idx != current_index:
+                    new_dict[item[0]] = item[1]
+                else:
+                    new_dict[new_item] = item[1]
+
+            self.list_items = new_dict
+
+            # update json file and ui
+            self.save_to_file()
+            self.update_list()
+
+            menu.destroy()
+
+        rename_button: Button = Button(menu, text="Edit Task",
+                                    command=edit)
+        rename_button.place(relx=0.5, rely=0.8, anchor="center")
 
     
     def mark_as_complete(self) -> None:
@@ -247,6 +310,9 @@ class ToDo:
         """
         Launch a pop-up window to delete all tasks in the list.
         """
+        if not self.list_items:
+            return
+
         menu: Toplevel = Toplevel()
         menu.geometry("200x100+600+300")
         menu.resizable(False, False)
